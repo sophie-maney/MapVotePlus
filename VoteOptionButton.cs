@@ -36,7 +36,7 @@ namespace MapVotePlus
 
             var playerCount = Math.Max(Math.Min(GameDirector.instance.PlayerList.Count, 12), 4);
             var votesCount = GetVotes(votes);
-            Color mainColor = _disabled ? Color.gray : (ownVote ? Color.yellow : Color.white);
+            Color mainColor = _disabled ? Color.gray : Color.white;
             string levelColor = _highlight ? $"#{Color.green.ToHexString()}" : (ownVote ? $"#{Color.yellow.ToHexString()}" : LevelColorDictionary.GetColor(Level));
 
             StringBuilder sb = new();

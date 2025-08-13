@@ -13,7 +13,7 @@
     <Description>REPO Mod to vote for a map out of a random selection based on MapVote</Description>
     <Product>$(MSBuildProjectName)</Product>
     <RootNamespace>$(MSBuildProjectName)</RootNamespace>
-    <RepositoryUrl>https://github.com/sophie-maney/Repo-MapVote</RepositoryUrl>
+    <RepositoryUrl>https://github.com/sophie-maney/MapVotePlus</RepositoryUrl>
 	  <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
 	  <AssemblyName>RAMP.$(MSBuildProjectName)</AssemblyName>
   </PropertyGroup>
