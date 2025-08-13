@@ -1,6 +1,6 @@
 {
   "name": "MapVotePlus",
-  "version_number": "1.1.0",
+  "version_number": "1.2.0",
   "website_url": "https://github.com/sophie-maney/MapVotePlus",
   "description": "REPO Mod to vote for a map out of a random selection based on MapVote",
   "dependencies": [

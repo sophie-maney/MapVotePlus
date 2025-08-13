@@ -1,3 +1,6 @@
+# Version 1.2.0
+- Nothing changed, just synced version numbers
+
 # Version 1.0.0
 - Initial Release
 - Added support to select only X amount of maps to choose from randomly based on https://github.com/npXXX/Repo-MapVote
