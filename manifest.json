@@ -1,0 +1,11 @@
+{
+  "name": "MapVotePlus",
+  "version_number": "1.1.0",
+  "website_url": "https://github.com/sophie-maney/Repo-MapVote",
+  "description": "REPO Mod to vote for a map out of a random selection based on MapVote",
+  "dependencies": [
+    "BepInEx-BepInExPack-5.4.2100",
+    "nickklmao-MenuLib-2.5.0",
+    "Zehs-REPOLib-2.1.0"
+  ]
+}
