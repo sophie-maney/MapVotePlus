@@ -19,7 +19,7 @@ namespace MapVotePlus.Patches
 
                 if(!MapVotePlus.HideInMenu.Value)
                 {
-                    MapVotePlus.CreateVotePopup(true);
+                    MapVotePlus.CreateVotePopup(true, true);
                 }
                 
                 if (MapVotePlus.IS_DEBUG && SemiFunc.IsMasterClientOrSingleplayer() && SemiFunc.RunIsLobbyMenu())

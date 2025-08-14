@@ -36,14 +36,14 @@ namespace MapVotePlus
 
             var playerCount = Math.Max(Math.Min(GameDirector.instance.PlayerList.Count, 12), 4);
             var votesCount = GetVotes(votes);
-            Color mainColor = _disabled ? Color.gray : Color.white;
+            Color mainColor = _disabled ? Color.gray : (_highlight ? Color.green : Color.white);
             string levelColor = _highlight ? $"#{Color.green.ToHexString()}" : (ownVote ? $"#{Color.yellow.ToHexString()}" : LevelColorDictionary.GetColor(Level));
 
             StringBuilder sb = new();
 
             if (_disabled) sb.Append("<s>");
 
-            sb.Append($"<mspace=0.25em>[{Utilities.ColorString((ownVote ? "X" : " "), mainColor)}]</mspace>  ");
+            sb.Append($"<mspace=0.25em>[{Utilities.ColorString((_highlight ? "O" : (ownVote ? "X" : " ")), mainColor)}]</mspace>  ");
             if (!_disabled) sb.Append($"<color={levelColor}>");
             sb.Append($"{(IsRandomButton ? MapVotePlus.VOTE_RANDOM_LABEL : Utilities.RemoveLevelPrefix(Level))}");
             if (!_disabled)

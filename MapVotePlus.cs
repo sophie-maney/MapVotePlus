@@ -21,7 +21,8 @@ using UnityEngine.UI;
 using Random = System.Random;
 using Sirenix.Utilities;
 
-namespace MapVotePlus {
+namespace MapVotePlus
+{
     [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
     [BepInDependency(REPOLib.MyPluginInfo.PLUGIN_GUID, BepInDependency.DependencyFlags.HardDependency)]
     [BepInDependency("nickklmao.menulib", BepInDependency.DependencyFlags.HardDependency)]
@@ -41,7 +42,7 @@ namespace MapVotePlus {
 
         // Logger
         internal static new readonly ManualLogSource Logger = BepInEx.Logging.Logger.CreateLogSource(MyPluginInfo.PLUGIN_NAME);
-        
+
         // Network Events
         public static NetworkedEvent? OnVoteEvent;
         public static NetworkedEvent? OnVoteEndedEvent;
@@ -73,7 +74,6 @@ namespace MapVotePlus {
 
         public static string? LastMapPlayed;
         public static List<string> CurrentVoteLevels = [];
-
         public static MapVotePlus Instance;
 
         private static readonly Hook RunManagerSetRunLevelHook = new(
@@ -100,7 +100,7 @@ namespace MapVotePlus {
             AccessTools.DeclaredMethod(typeof(MenuPageLobby), nameof(MenuPageLobby.ButtonStart)), HookButtonStart);
         private static void HookButtonStart(Action<MenuPageLobby> orig, MenuPageLobby self)
         {
-            if(DisableInput)
+            if (DisableInput)
             {
                 return;
             }
@@ -109,7 +109,8 @@ namespace MapVotePlus {
             {
                 ButtonStartHookRunAmount = 0;
                 orig(self);
-            } else
+            }
+            else
             {
                 ButtonStartHookRunAmount++;
                 var map = GetWinningMap();
@@ -166,6 +167,22 @@ namespace MapVotePlus {
             OnStartCountdown = new NetworkedEvent("OnStartCountdown", HandleOnStartCountdown);
             OnMapsRandomized = new NetworkedEvent("OnMapsRandomized", HandleOnMapsRandomized);
             OnPlayerConnected = new NetworkedEvent("OnPlayerConnected", HandleOnPlayerConnected);
+
+            MenuAPI.AddElementToEscapeMenu(parent =>
+            {
+                var enabled = RunManager.instance.levelCurrent.name == TRUCK_LEVEL_NAME;
+                MenuAPI.CreateREPOButton(
+                                $"{Utilities.ColorString("Vote Map", enabled ? Color.yellow : Color.black)}",
+                                () =>
+                            {
+                                // Don't allow voting outside of the truck level
+                                // ToDo: This isn't live but once every load, so it won't update if voting is finished until the next level loads
+                                if (enabled)
+                                {
+                                    CreateVotePopup(true);
+                                }
+                            }, parent, new Vector2(126f, 122f));
+            });
         }
 
         public static bool HasBeenLastPlayed(string? level)
@@ -179,6 +196,7 @@ namespace MapVotePlus {
         {
             CurrentVotes.Values.Clear();
             VoteOptionButtons.Clear();
+            CurrentVoteLevels.Clear();
             OwnVoteLevel = null;
             UpdateButtonLabels();
         }
@@ -191,18 +209,18 @@ namespace MapVotePlus {
                 OnMapsRandomized?.RaiseEvent(CurrentVoteLevels.ToArray(), NetworkingEvents.RaiseOthers, SendOptions.SendReliable);
             }
         }
-        
+
         private static void HandleOnMapsRandomized(EventData data)
         {
             if (SemiFunc.IsMasterClientOrSingleplayer())
             {
                 return;
             }
-            CurrentVoteLevels = ((string[])data.CustomData).ToList();
+            CurrentVoteLevels = [.. (string[])data.CustomData];
             Logger.LogMessage($"Randomized maps received, generating {CurrentVoteLevels.Count} vote options");
             CreateVotePopup(true);
         }
-        
+
         private static void HandleOnSyncLastMapPlayed(EventData data)
         {
             string lastMap = (string)data.CustomData;
@@ -241,7 +259,7 @@ namespace MapVotePlus {
                 {
                     CurrentVotes[x.Key] = x.Value;
                 });
-                
+
                 UpdateButtonLabels();
             }
         }
@@ -293,7 +311,7 @@ namespace MapVotePlus {
 
         public static IEnumerator StartCountdown()
         {
-            if(SemiFunc.IsMasterClientOrSingleplayer())
+            if (SemiFunc.IsMasterClientOrSingleplayer())
             {
                 VotingTimeLeft = VotingTime.Value;
                 OnStartCountdown?.RaiseEvent(VotingTimeLeft, NetworkingEvents.RaiseOthers, SendOptions.SendReliable);
@@ -308,24 +326,38 @@ namespace MapVotePlus {
             while (VotingTimeLeft > 0)
             {
                 VotingTimeLeft -= Time.deltaTime;
-                if(VotingTimeLabel != null)
+                if (VotingTimeLabel != null)
                 {
                     VotingTimeLabel.labelTMP.text = $"<mspace=0.5em>{VotingTimeLeft.ToString(format, nfi)}</mspace> Seconds Left";
                 }
                 yield return null;
             }
 
-            if(VotingTimeLabel != null && VotingTimeLabel.gameObject != null)
+            if (VotingTimeLabel != null && VotingTimeLabel.gameObject != null)
             {
                 Destroy(VotingTimeLabel.gameObject);
             }
 
-            if(SemiFunc.IsMasterClientOrSingleplayer())
+            if (SemiFunc.IsMasterClientOrSingleplayer())
             {
                 var map = GetWinningMap();
                 OnVoteEndedEvent?.RaiseEvent(map, NetworkingEvents.RaiseOthers, SendOptions.SendReliable);
                 Instance.StartCoroutine(OnVotingDone(map));
             }
+        }
+
+        public static List<Level> GetEligibleLevels(RunManager? runManager = null)
+        {
+            runManager ??= FindObjectOfType<RunManager>();
+
+            List<Level> eligibleLevels = runManager.levels;
+
+            if (NoRepeatedMaps.Value)
+            {
+                eligibleLevels = eligibleLevels.FindAll(level => !HasBeenLastPlayed(level.name));
+            }
+
+            return eligibleLevels;
         }
 
         public static List<Level> GetLevels(bool reRandomize = true)
@@ -336,29 +368,39 @@ namespace MapVotePlus {
                 var levels = runManager.levels.Where(l => CurrentVoteLevels.Contains(l.name)).ToList();
                 return levels;
             }
-            
-            var actualLevelNumber = runManager.levels.Count < VoteableLevelNumber.Value ? runManager.levels.Count : VoteableLevelNumber.Value;
+
+            // If user has specified to return all levels, just do it immediately
+            if (VoteableLevelNumber.Value <= 0)
+            {
+                return runManager.levels;
+            }
+
+            // If a user has specified a number of levels to vote for, we will randomize the levels
+            // To avoid showing maps you cannot vote for, we will filter out the levels that have been played last
+            var eligibleLevels = GetEligibleLevels(runManager);
+            var totalLevels = eligibleLevels.Count;
+
+            var actualLevelNumber = totalLevels < VoteableLevelNumber.Value ? totalLevels : VoteableLevelNumber.Value;
             var levelIndexes = new List<int>();
-            var totalLevels = runManager.levels.Count;
             for (var i = 0; i < totalLevels; i++)
             {
                 levelIndexes.Add(i);
             }
-            
+
             var random = new Random();
             for (var i = levelIndexes.Count - 1; i > 0; i--)
             {
                 var randomIndex = random.Next(0, i + 1);
                 (levelIndexes[i], levelIndexes[randomIndex]) = (levelIndexes[randomIndex], levelIndexes[i]);
             }
-            
+
             var selectedIndexes = levelIndexes.Take(actualLevelNumber).ToArray();
             var levelNumber = VoteableLevelNumber.Value > 0 ? VoteableLevelNumber.Value.ToString() : "all";
             Logger.LogMessage($"Starting a vote for {levelNumber} levels");
-            return VoteableLevelNumber.Value > 0 ? runManager.levels.Where(l => runManager.levels.IndexOf(l) >= 0 && selectedIndexes.Contains(runManager.levels.IndexOf(l))).ToList() : runManager.levels;
-        } 
+            return [.. eligibleLevels.Where(l => eligibleLevels.IndexOf(l) >= 0 && selectedIndexes.Contains(eligibleLevels.IndexOf(l)))];
+        }
 
-        public static void CreateVotePopup(bool isInMenu = false)
+        public static void CreateVotePopup(bool isInMenu = false, bool isInLobby = false)
         {
             MenuAPI.CloseAllPagesAddedOnTop();
             VoteOptionButtons.Clear();
@@ -370,28 +412,28 @@ namespace MapVotePlus {
             {
                 GameDirector.instance.DisableInput = true;
             }
-            
+
             var runManager = FindObjectOfType<RunManager>();
             if (SemiFunc.IsMasterClientOrSingleplayer())
             {
                 if (CurrentVoteLevels.Count <= 0)
                 {
                     var levels = GetLevels();
-                    CurrentVoteLevels = levels.Select(x => x.name).ToList();
+                    CurrentVoteLevels = [.. levels.Select(x => x.name)];
                     Logger.LogMessage($"{CurrentVoteLevels.Count} random maps selected, sending to clients");
                 }
                 else
                 {
                     var levels = GetLevels(false);
-                    CurrentVoteLevels = levels.Select(x => x.name).ToList();
+                    CurrentVoteLevels = [.. levels.Select(x => x.name)];
                 }
 
                 OnMapsRandomized?.RaiseEvent(CurrentVoteLevels.ToArray(), NetworkingEvents.RaiseOthers, SendOptions.SendReliable);
-                GenerateVoteOptions(isInMenu);
+                GenerateVoteOptions(isInMenu, isInLobby);
             }
             else
             {
-                GenerateVoteOptions(isInMenu);
+                GenerateVoteOptions(isInMenu, isInLobby);
             }
 
             VotePopup!.AddElement(parent =>
@@ -404,18 +446,26 @@ namespace MapVotePlus {
             VotePopup.GetComponent<MenuPage>().PageStateSet(MenuPage.PageState.Active);
         }
 
-        public static void GenerateVoteOptions(bool isInMenu = false)
+        public static void GenerateVoteOptions(bool isInMenu = false, bool isInLobby = false)
         {
             var levels = GetLevels(false);
-            VotePopup = MenuAPI.CreateREPOPopupPage("Vote map", true, !isInMenu, 0f, isInMenu ? new Vector2(40f, 0f) : new Vector2(-100f,0f));
+            VotePopup = MenuAPI.CreateREPOPopupPage("Vote map", shouldCachePage: true, pageDimmerVisibility: !isInMenu, spacing: 0f, localPosition: isInMenu ? new Vector2(40f, 0f) : new Vector2(-100f, 0f));
+
+            // Disable Escape Key from closing the popup for the lobby screen, no reason to close it there
+            VotePopup.onEscapePressed = () =>
+            {
+                return !isInLobby;
+            };
+
             // Generate Vote Options from Levels
             foreach (var (level, index) in levels.Select((level, index) => (level, index)))
             {
                 var name = level.name;
                 VotePopup.AddElementToScrollView(parent =>
                 {
-                    var btn = MenuAPI.CreateREPOButton(null, () => {
-                        if(DisableInput)
+                    var btn = MenuAPI.CreateREPOButton(null, () =>
+                    {
+                        if (DisableInput)
                         {
                             return;
                         }
@@ -423,7 +473,7 @@ namespace MapVotePlus {
                         OnVoteEvent?.RaiseEvent(name, NetworkingEvents.RaiseAll, SendOptions.SendReliable);
                     }, parent);
 
-                    if(HasBeenLastPlayed(name))
+                    if (HasBeenLastPlayed(name))
                     {
                         btn.gameObject.GetComponent<MenuButton>().disabled = true;
                     }
@@ -443,7 +493,8 @@ namespace MapVotePlus {
             // Generate "Random" Vote Option
             VotePopup.AddElementToScrollView(parent =>
             {
-                var btn = MenuAPI.CreateREPOButton(null, () => {
+                var btn = MenuAPI.CreateREPOButton(null, () =>
+                {
                     if (DisableInput)
                     {
                         return;
@@ -463,7 +514,7 @@ namespace MapVotePlus {
                 return btn.rectTransform;
             });
         }
-        
+
         public static void UpdateButtonLabels()
         {
             VoteOptionButtons.ForEach(b =>
@@ -474,7 +525,7 @@ namespace MapVotePlus {
 
         public static List<VoteOptionButton> GetEligibleOptions()
         {
-            if(CurrentVotes.Values.Count == 0)
+            if (CurrentVotes.Values.Count == 0)
             {
                 return VoteOptionButtons.FindAll(x => x.IsRandomButton == false);
             }
@@ -539,8 +590,8 @@ namespace MapVotePlus {
             else
             {
                 var wonOption = eligibleOptions.FirstOrDefault();
-                
-                if(wonOption != null)
+
+                if (wonOption != null)
                 {
                     yield return Instance.StartCoroutine(BlinkButton(wonOption));
                 }
@@ -548,7 +599,7 @@ namespace MapVotePlus {
 
             DisableInput = false;
 
-            if(SemiFunc.RunIsLobby())
+            if (SemiFunc.RunIsLobby())
             {
                 CreateNextMapLabel(WonMap);
 
@@ -557,7 +608,7 @@ namespace MapVotePlus {
                 MenuAPI.CloseAllPagesAddedOnTop();
             }
 
-            if(SemiFunc.IsMasterClient())
+            if (SemiFunc.IsMasterClient())
             {
                 if (SemiFunc.RunIsLobbyMenu())
                 {
@@ -575,7 +626,7 @@ namespace MapVotePlus {
             int maxBlinks = (int)Mathf.Ceil(blinkDuration / blinkFrequency);
             int currentBlink = 0;
 
-            while (currentBlink < maxBlinks) 
+            while (currentBlink < maxBlinks)
             {
                 voteOption.UpdateLabel(true);
                 yield return new WaitForSeconds(blinkFrequency / 2);
@@ -592,7 +643,7 @@ namespace MapVotePlus {
             const float maxDelay = 0.5f;
             const float initialSpeed = 0.05f;
             const float allowSelectionDelayFactor = 0.8f;
-            
+
             float delay = initialSpeed;
             int index = 0;
             int endIndex = winningIndex;
@@ -609,7 +660,7 @@ namespace MapVotePlus {
 
                 yield return new WaitForSeconds(delay);
 
-                if(delay > maxDelay * allowSelectionDelayFactor && index == endIndex)
+                if (delay > maxDelay * allowSelectionDelayFactor && index == endIndex)
                 {
                     break;
                 }
