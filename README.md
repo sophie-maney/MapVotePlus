@@ -6,7 +6,10 @@ Allows you and your friends to vote for the next map to play!
 - Vote out of a selection of maps (like 3 random maps each round)
 - Randomly select a map
 
-| ![Vote Gif](https://i.imgur.com/mHTk8zD.gif) | ![Vote Gif 2](https://i.imgur.com/Or5NkMW.gif) | ![Vote Gif 3](https://i.imgur.com/bXgnB9y.gif) |
+|  |  |  |
+|--|--|--|
+| ![Screenshot 1](https://i.imgur.com/kbseRdm.png) | ![Screenshot 2](https://i.imgur.com/S7K37sN.png) |
+| ![Screenshot 3](https://i.imgur.com/dvU0ZRM.png) |                                                  |
 
 ## Massive thank you
 
