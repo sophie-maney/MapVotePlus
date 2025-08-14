@@ -1,3 +1,8 @@
+# Version 1.3.0
+- If you have NoRepeatedMaps enabled it now no longer includes the previous map as an option when VoteableLevelNumber is not 0
+- Added first version of disabling closing the vote menu in lobby with Escape. This works unless you open another popup and close that by pressing Escape. Annoying.
+- Added first version of re-opening the vote menu in Settings when you're in the truck! If you accidentally close the menu, you can still change your vote now by hitting Escape -> "Map vote" button
+
 # Version 1.2.0
 - Nothing changed, just synced version numbers
 
